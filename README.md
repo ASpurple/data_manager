@@ -5,7 +5,7 @@
 
 - file storage
 	```ts
-	import { FileManager } from "https://deno.land/x/data_manager@v1.0.0/mod.ts";
+	import { FileManager } from "https://deno.land/x/data_manager@v1.0.1/mod.ts";
 	
 	const fileManager = new FileManager("./files");
 	const file = await fileManager.saveFileByPath("./1.pdf");
@@ -15,7 +15,7 @@
 
 - database
 ```ts
-import { DataStore, SortMode } from "https://deno.land/x/data_manager@v1.0.0/mod.ts";
+import { DataStore, SortMode } from "https://deno.land/x/data_manager@v1.0.1/mod.ts";
 interface User {
 	name: string;
 	age: number;
