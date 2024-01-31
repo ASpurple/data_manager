@@ -98,9 +98,12 @@ export class FileManager {
 		return path.join(this.folder, fileId, "info");
 	}
 
-	// 保存文件，如果 fileId 存在，则更新指定 Id 的文件
-	async saveFile(content: ReadableStream<Uint8Array>, options: { fileName: string; fileId?: string }): Promise<FileModel | null> {
-		const id = options.fileId ? options.fileId : uuid();
+	// 保存文件
+	async saveFile(
+		content: ReadableStream<Uint8Array>,
+		options: { fileName: string; description?: string; permission?: FilePermission }
+	): Promise<FileModel | null> {
+		const id = uuid();
 		const folderPath = path.join(this.folder, id);
 		if (await this.isFileExists(id)) {
 			await Deno.remove(folderPath, { recursive: true });
@@ -114,30 +117,46 @@ export class FileManager {
 		const size = await this.writeFile(filePath, content);
 		if (!size) return null;
 		const updateTime = moment().format("YYYY-MM-DD HH:mm:ss");
-		let createTime = updateTime;
-		let description = "";
-		let permission = FilePermission.public;
-		if (options.fileId) {
-			const file = await this.getFile(options.fileId);
-			if (file) {
-				createTime = file.file.createTime ?? updateTime;
-				description = file.file.description ?? "";
-				permission = file.file.permission ?? FilePermission.public;
-			}
-		}
+		const createTime = updateTime;
+		const description = options.description ?? "";
+		const permission = options.permission ?? FilePermission.public;
+		const model: FileModel = { id, name, suffixName, fullName, size, mime, createTime, updateTime, description, permission };
+		await this.writeString(infoPath, JSON.stringify(model));
+		return model;
+	}
+
+	// 更新文件
+	async updateFile(
+		content: ReadableStream<Uint8Array>,
+		options: { id: string; fileName?: string; description?: string; permission?: FilePermission }
+	): Promise<FileModel | null> {
+		const id = options.id;
+		const existsFile = await this.getFile(id);
+		if (!existsFile) return null;
+		const filePath = this.getFilePath(id);
+		const infoPath = this.getFileInfoPath(id);
+		const fullName = options.fileName ? path.basename(options.fileName) : existsFile.file.fullName;
+		const { name, suffixName } = parseFileName(fullName);
+		const mime = mrmime.lookup(fullName) || "application/octet-stream";
+		const size = await this.writeFile(filePath, content);
+		if (!size) return null;
+		const updateTime = moment().format("YYYY-MM-DD HH:mm:ss");
+		const createTime = existsFile.file.createTime;
+		const description = options.description ?? existsFile.file.description;
+		const permission = options.permission ?? existsFile.file.permission;
 		const model: FileModel = { id, name, suffixName, fullName, size, mime, createTime, updateTime, description, permission };
 		await this.writeString(infoPath, JSON.stringify(model));
 		return model;
 	}
 
 	// 保存指定路径的文件
-	async saveFileByPath(filePath: string, fileId?: string): Promise<FileModel | null> {
+	async saveFileByPath(filePath: string): Promise<FileModel | null> {
 		const folderExists = await fsMod.exists(filePath);
 		if (!folderExists) return null;
 		const stat = await Deno.stat(filePath);
 		if (!stat.isFile) return null;
 		const file = await Deno.open(filePath);
-		const model = await this.saveFile(file.readable, { fileId, fileName: path.basename(filePath) });
+		const model = await this.saveFile(file.readable, { fileName: path.basename(filePath) });
 		return model;
 	}
 
