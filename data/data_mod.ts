@@ -55,6 +55,16 @@ export class DataStore<T> {
 		await this.writeAll(arr);
 	}
 
+	async update(test: (data: T) => boolean, newData: Partial<T>) {
+		const arr = await this.readAll();
+		for (let i = 0; i < arr.length; i++) {
+			const record = arr[i];
+			if (!test(record)) continue;
+			arr[i] = { ...record, ...newData };
+		}
+		await this.writeAll(arr);
+	}
+
 	async delete(test: (data: T) => boolean) {
 		const arr = await this.readAll();
 		const dst = arr.filter((it) => !test(it));
