@@ -71,6 +71,15 @@ export class DataStore<T> {
 		await this.writeAll(dst);
 	}
 
+	async get(test: (data: T) => boolean): Promise<T | null> {
+		const arr = await this.readAll();
+		for (let i = 0; i < arr.length; i++) {
+			const record = arr[i];
+			if (test(record)) return record;
+		}
+		return null;
+	}
+
 	async query(test: (data: T) => boolean, options?: QueryOption): Promise<T[]> {
 		const arr = await this.readAll();
 		let result = arr.filter((it) => test(it));
