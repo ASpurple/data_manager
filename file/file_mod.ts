@@ -184,4 +184,60 @@ export class FileManager {
 		const filePath = path.join(this.folder, fileId);
 		await Deno.remove(filePath, { recursive: true });
 	}
+
+	// 根据文件 URI 保存文件
+	async saveFileByUri(
+		uri: string,
+		options?: { fileName?: string; description?: string; permission?: FilePermission }
+	): Promise<FileModel | null> {
+		try {
+			// 验证URI
+			if (!uri || !(uri.startsWith("http://") || uri.startsWith("https://"))) {
+				console.error("Invalid URI format. URI must start with http:// or https://");
+				return null;
+			}
+
+			// 获取文件内容
+			const response = await fetch(uri);
+			if (!response.ok) {
+				console.error(`Failed to fetch file from URI: ${uri}, status: ${response.status}`);
+				return null;
+			}
+
+			// 确定文件名
+			let fileName = options?.fileName;
+			if (!fileName) {
+				// 尝试从Content-Disposition头获取文件名
+				const contentDisposition = response.headers.get("content-disposition");
+				if (contentDisposition) {
+					const filenameMatch = contentDisposition.match(/filename="?([^"]+)"?/);
+					if (filenameMatch && filenameMatch[1]) {
+						fileName = filenameMatch[1];
+					}
+				}
+
+				// 如果没有从头部获取到文件名，则从URI中提取
+				if (!fileName) {
+					const urlObj = new URL(uri);
+					const pathSegments = urlObj.pathname.split("/");
+					fileName = pathSegments[pathSegments.length - 1];
+					
+					// 如果路径最后部分为空或没有扩展名，使用默认文件名
+					if (!fileName || fileName === "") {
+						fileName = "downloaded_file";
+					}
+				}
+			}
+
+			// 保存文件
+			return await this.saveFile(response.body, {
+				fileName,
+				description: options?.description,
+				permission: options?.permission
+			});
+		} catch (e) {
+			console.error("Error saving file from URI:", e);
+			return null;
+		}
+	}
 }
